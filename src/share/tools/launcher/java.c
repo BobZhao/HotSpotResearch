@@ -222,6 +222,7 @@ struct JavaMainArgs {
 
 /*
  * Entry point.
+ * JAVA程序主入口
  */
 int
 main(int argc, char ** argv)
@@ -270,6 +271,8 @@ main(int argc, char ** argv)
         original_argv[i] = argv[i];
     }
 
+    // 创建运行环境，如检查系统使用的数据模型（32bit、64bit），获取使用的JRE路径，找到jvm.cfg解析已知的vm类型
+    // 设置新的LD_LIBRARY_PATH变量
     CreateExecutionEnvironment(&argc, &argv,
                                jrepath, sizeof(jrepath),
                                jvmpath, sizeof(jvmpath),
@@ -282,9 +285,7 @@ main(int argc, char ** argv)
 
     if (_launcher_debug)
       start = CounterGet();
-    //=============================
-    //
-    //=============================
+    // 返回libjvm.so里JNI_CreateJavaVM方法的符号地址
     if (!LoadJavaVM(jvmpath, &ifn)) {
       exit(6);
     }
@@ -310,8 +311,15 @@ main(int argc, char ** argv)
     --argc;
 
 #ifdef JAVA_ARGS
+    // 转换命令行参数 如：javac -cp foo:foo/"*" -J-ms32m
     /* Preprocess wrapper arguments */
     TranslateApplicationArgs(&argc, &argv);
+    /**
+     * 添加了三个VM选项
+     * -Denv.class.patp 用户设置的CLASSPATH变量，如果CLASSPATH显式设置了tools.jar则可以反编译VM的工具类sun.tools.*
+     * -Dapplication.home 应用程序目录
+     * -Djava.class.path 应用程序的类文件目录
+     */
     if (!AddApplicationOptions()) {
         exit(1);
     }
@@ -326,6 +334,7 @@ main(int argc, char ** argv)
 #endif
 
     /*
+     *  解析命令行参数-cp、-version、-*path、-X*等参数
      *  Parse command line options; if the return value of
      *  ParseArguments is false, the program should exit.
      */
@@ -353,6 +362,7 @@ main(int argc, char ** argv)
 #endif
 
     /*
+     * 移除环境变量防止重复执行
      * Done with all command line processing and potential re-execs so
      * clean up the environment.
      */
@@ -366,6 +376,7 @@ main(int argc, char ** argv)
 #endif
 
     /*
+     * 指定线程大小
      * If user doesn't specify stack size, check if VM has a preference.
      * Note that HotSpot no longer supports JNI_VERSION_1_1 but it will
      * return its default stack size through the init args structure.
@@ -389,6 +400,7 @@ main(int argc, char ** argv)
       args.classname = classname;
       args.ifn = ifn;
 
+      // 至于为什么在新线程中创建JVM看这里 https://bugs.openjdk.java.net/browse/JDK-6316197
       return ContinueInNewThread(JavaMain, threadStackSize, (void*)&args);
     }
 }
