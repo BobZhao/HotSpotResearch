@@ -316,7 +316,8 @@ main(int argc, char ** argv)
     TranslateApplicationArgs(&argc, &argv);
     /**
      * 添加了三个VM选项
-     * -Denv.class.patp 用户设置的CLASSPATH变量，如果CLASSPATH显式设置了tools.jar则可以反编译VM的工具类sun.tools.*
+     * -Denv.class.patp 用户设置的CLASSPATH变量，如果CLASSPATH显式设置了tools.jar
+     *  				则可以反编译VM的工具类sun.tools.*
      * -Dapplication.home 应用程序目录
      * -Djava.class.path 应用程序的类文件目录
      */
@@ -400,7 +401,8 @@ main(int argc, char ** argv)
       args.classname = classname;
       args.ifn = ifn;
 
-      // 至于为什么在新线程中创建JVM看这里 https://bugs.openjdk.java.net/browse/JDK-6316197
+      // 至于为什么在新线程中创建JVM看这里
+      // https://bugs.openjdk.java.net/browse/JDK-6316197
       return ContinueInNewThread(JavaMain, threadStackSize, (void*)&args);
     }
 }
@@ -435,6 +437,7 @@ JavaMain(void * _args)
 
     if (_launcher_debug)
         start = CounterGet();
+    // 调用初始化虚拟机
     if (!InitializeJVM(&vm, &env, &ifn)) {
         ReportErrorMessage("Could not create the Java virtual machine.",
                            JNI_TRUE);
@@ -457,6 +460,7 @@ JavaMain(void * _args)
         }
     }
 
+    // 如果jar文件和类名均未指定则输出默认usage信息
     /* If the user specified neither a class name nor a JAR file */
     if (jarfile == 0 && classname == 0) {
         PrintUsage();
@@ -506,6 +510,7 @@ JavaMain(void * _args)
      *     2)   Remove the vestages of maintaining main_class through
      *          the environment (and remove these comments).
      */
+    // 解析jar包并加载主类文件
     if (jarfile != 0) {
         mainClassName = GetMainClassName(env, jarfile);
         if ((*env)->ExceptionOccurred(env)) {
@@ -526,6 +531,7 @@ JavaMain(void * _args)
             ReportExceptionDescription(env);
             goto leave;
         }
+        // 加载mainClass
         mainClass = LoadClass(env, classname);
         if(mainClass == NULL) { /* exception occured */
             const char * format = "Could not find the main class: %s. Program will exit.";
@@ -538,6 +544,7 @@ JavaMain(void * _args)
         }
         (*env)->ReleaseStringUTFChars(env, mainClassName, classname);
     } else {
+      // 加载主类文件
       mainClassName = NewPlatformString(env, classname);
       if (mainClassName == NULL) {
         const char * format = "Failed to load Main Class: %s";
@@ -613,6 +620,7 @@ JavaMain(void * _args)
         goto leave;
     }
 
+    // 调用main方法
     /* Invoke main method. */
     (*env)->CallStaticVoidMethod(env, mainClass, mainID, mainArgs);
 
