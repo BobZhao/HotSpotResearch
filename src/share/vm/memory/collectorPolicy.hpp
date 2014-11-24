@@ -269,8 +269,12 @@ class GenCollectorPolicy : public CollectorPolicy {
   virtual void initialize_generations() = 0;
 
   virtual void initialize_all() {
+	// 初始化并校正NewSize、MaxNewSize、SurvivorRatio、NewRatio参数的可用性
     initialize_flags();
+    // 初始化堆大小，解析NewSize、MaxNewSize等参数。
+    // 如果NewSize和NewSize此类具体值的参数未设定则使用NewRatio以调整堆空间大小
     initialize_size_info();
+    // 初始化各分区代
     initialize_generations();
   }
 

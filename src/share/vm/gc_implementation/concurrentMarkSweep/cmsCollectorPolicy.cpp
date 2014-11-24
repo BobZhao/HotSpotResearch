@@ -63,12 +63,15 @@ ConcurrentMarkSweepPolicy::ConcurrentMarkSweepPolicy() {
 }
 
 void ConcurrentMarkSweepPolicy::initialize_generations() {
+  // 创建持久代
   initialize_perm_generation(PermGen::ConcurrentMarkSweep);
   _generations = new GenerationSpecPtr[number_of_generations()];
   if (_generations == NULL)
     vm_exit_during_initialization("Unable to allocate gen spec");
 
+  // 如果设定了UseParNewGC参数且ParallelGCThreads大于0
   if (ParNewGeneration::in_use()) {
+	// 如果新生代适应自适应策略则分区类型为ASParNew
     if (UseAdaptiveSizePolicy) {
       _generations[0] = new GenerationSpec(Generation::ASParNew,
                                            _initial_gen0_size, _max_gen0_size);
@@ -77,9 +80,11 @@ void ConcurrentMarkSweepPolicy::initialize_generations() {
                                            _initial_gen0_size, _max_gen0_size);
     }
   } else {
+	// 新生代未指定使用并行回收，则用DefNewGC，默认为串行
     _generations[0] = new GenerationSpec(Generation::DefNew,
                                          _initial_gen0_size, _max_gen0_size);
   }
+  // 如果设定年老代GC规范
   if (UseAdaptiveSizePolicy) {
     _generations[1] = new GenerationSpec(Generation::ASConcurrentMarkSweep,
                             _initial_gen1_size, _max_gen1_size);

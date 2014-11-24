@@ -3269,24 +3269,44 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   if (!is_supported_jni_version(args->version)) return JNI_EVERSION;
 
   // Initialize the output stream module
+  // 初始化输出流
   ostream_init();
 
   // Process java launcher properties.
+  // 处理Java启动参数，如-Dsun.java.launcher*
   Arguments::process_sun_java_launcher_properties(args);
 
   // Initialize the os module before using TLS
+  // 初始化操作系统模块，如页大小，处理器数量，系统时钟等
   os::init();
 
   // Initialize system properties.
+  // 初始化系统属性，其中分为【可读属性】和【可读写属性】
+  // 可读属性：
+  // java.vm.specification.name
+  // java.vm.version
+  // java.vm.name
+  // java.vm.info
+  // 可读写属性：
+  // java.ext.dirs
+  // java.endorsed.dirs
+  // sun.boot.library.path
+  // java.library.path
+  // java.home
+  // sun.boot.class.path
+  // java.class.path
   Arguments::init_system_properties();
 
   // So that JDK version can be used as a discrimintor when parsing arguments
   JDK_Version_init();
 
   // Update/Initialize System properties after JDK version number is known
+  // 设置java.vm.specification.vendor属性（1.6之前是Sun Microsystems Inc. 1.7之后是Oracle Corporation）
+  // 设置java.vm.specification.version和java.vm.vendor属性
   Arguments::init_version_specific_system_properties();
 
   // Parse arguments
+  // 解析启动参数，如-XX:Flags=、-XX:+PrintVMOptions、-XX:+PrintFlagsInitial etc.
   jint parse_result = Arguments::parse(args);
   if (parse_result != JNI_OK) return parse_result;
 
@@ -3320,6 +3340,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   MemTracker::bootstrap_single_thread();
 
   // Initialize output stream logging
+  // 初始化GC日志输出流，用来处理-Xloggc参数
   ostream_init_log();
 
   // Convert -Xrun to -agentlib: if there is no JVM_OnLoad
@@ -3329,6 +3350,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   }
 
   // Launch -agentlib/-agentpath and converted -Xrun agents
+  // 加载agent库
   if (Arguments::init_agents_at_startup()) {
     create_vm_init_agents();
   }
@@ -3339,6 +3361,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   _number_of_non_daemon_threads = 0;
 
   // Initialize global data structures and create system classes in heap
+  // 初始化全局数据数据结构及系统类，包括：
+  // 初始化Java基础类型
+  // 初始化时间队列
+  // 初始化锁
+  // 初始化chunkpool
+  // 初始化性能数据统计模块
   vm_init_globals();
 
   // Attach the main thread to this os thread
@@ -3373,9 +3401,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   MemTracker::bootstrap_multi_thread();
 
   // Initialize global modules
-  //
   // ========================================
-  //IMPORTANT!!!
+  // IMPORTANT!!! 初始化全局模块
   // ========================================
   jint status = init_globals();
   if (status != JNI_OK) {
@@ -3585,6 +3612,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 #endif /* USDT2 */
 
   // record VM initialization completion time
+  // 向VM管理模块发送初始化完成信号
   Management::record_vm_init_completed();
 
   // Compute system loader. Note that this has to occur after set_init_completed, since
@@ -3592,6 +3620,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Note that we do not use CHECK_0 here since we are inside an EXCEPTION_MARK and
   // set_init_completed has just been called, causing exceptions not to be shortcut
   // anymore. We call vm_exit_during_initialization directly instead.
+  // 载入classloader
   SystemDictionary::compute_java_system_loader(THREAD);
   if (HAS_PENDING_EXCEPTION) {
     vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
@@ -3618,6 +3647,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::enter_live_phase();
 
   // Signal Dispatcher needs to be started before VMInit event is posted
+  // 启动一个叫做“信号分发器”的线程用来处理进程间的信号
+  // 比如通过jstack获取一个jvm实例的栈信息
   os::signal_init();
 
   // Start Attach Listener if +StartAttachListener or it can't be started lazily
@@ -3648,7 +3679,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   // initialize compiler(s)
   CompileBroker::compilation_init();
-
+  // 加载sun.management.Agent类并调用startAgent方法开启管理服务
   Management::initialize(THREAD);
   if (HAS_PENDING_EXCEPTION) {
     // management agent fails to start possibly due to

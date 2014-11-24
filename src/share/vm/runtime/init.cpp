@@ -90,8 +90,10 @@ void vm_init_globals() {
 
 
 jint init_globals() {
+
   HandleMark hm;
-  // 管理器初始化（包括线程服务初始化，运行时服务初始化、类加载服务初始化）
+  // 初始化各子系统的监控及管理服务
+  // JMX、线程和同步子系统、类加载子系统的监控和管理
   management_init();
   // 初始化字节码表，如istore、iload、iadd
   bytecodes_init();
@@ -104,7 +106,9 @@ jint init_globals() {
   // 系统初始化
   os_init_globals();
   stubRoutines_init1();
+  // ============================
   // 初始化堆以及决定所使用GC策略
+  // ============================
   jint status = universe_init();  // dependent on codeCache_init and
                                   // stubRoutines_init1
   if (status != JNI_OK)
@@ -115,18 +119,22 @@ jint init_globals() {
   // 初始化MarkSweep
   marksweep_init();
   accessFlags_init();
-
+  // 初始化操作码模板表
   templateTable_init();
   InterfaceSupport_init();
   SharedRuntime::generate_stubs();
+  // 初始化语法表及系统字典等
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
+  // 初始化软引用时间戳表并设定软引用清除策略
   referenceProcessor_init();
   jni_handles_init();
+  // 代码数据结构的必要性检查（仅限debug版本）
   vmStructs_init();
-
   vtableStubs_init();
   InlineCacheBuffer_init();
+  // oracle编译器初始化（oracle编译器是一个编译器开关接口）
   compilerOracle_init();
+  // 初始化编译策略（根据启动参数决定编译策略）
   compilationPolicy_init();
   compileBroker_init();
   VMRegImpl::set_regName();

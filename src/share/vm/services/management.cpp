@@ -73,9 +73,13 @@ jmmOptionalSupport Management::_optional_support = {0};
 TimeStamp Management::_stamp;
 
 void management_init() {
+  // 初始化management模块，主要负责JMX及记录虚拟机运行情况等功能
   Management::init();
+  // 初始化线程服务，主要负责线程和同步子系统的性能监控和管理服务
   ThreadService::init();
+  // 初始化运行时服务
   RuntimeService::init();
+  // 初始化类加载服务，主要提供类加载子系统的系统监控和管理支持功能
   ClassLoadingService::init();
 }
 

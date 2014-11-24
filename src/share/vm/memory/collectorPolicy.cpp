@@ -100,7 +100,7 @@ void CollectorPolicy::initialize_size_info() {
   if (initial_heap_byte_size() == 0) {
     set_initial_heap_byte_size(NewSize + OldSize);
   }
-  // 设置堆初始化空间
+  //设置堆初始化空间
   set_initial_heap_byte_size(align_size_up(_initial_heap_byte_size,
                                            min_alignment()));
 
@@ -108,10 +108,10 @@ void CollectorPolicy::initialize_size_info() {
   if (min_heap_byte_size() == 0) {
     set_min_heap_byte_size(NewSize + OldSize);
   }
-  // 设置堆最小空间
+  //设置堆最小空间
   set_min_heap_byte_size(align_size_up(_min_heap_byte_size,
                                        min_alignment()));
-  // 设置堆最大空间
+  //设置堆最大空间
   set_max_heap_byte_size(align_size_up(MaxHeapSize, max_alignment()));
 
   // Check heap parameter properties
@@ -248,7 +248,9 @@ void GenCollectorPolicy::initialize_flags() {
   if (NewSize > MaxNewSize) {
     MaxNewSize = NewSize;
   }
+  // 校正新生代最小值
   NewSize = align_size_down(NewSize, min_alignment());
+  // 校正新生代最大值
   MaxNewSize = align_size_down(MaxNewSize, min_alignment());
 
   // Check validity of heap flags
@@ -379,7 +381,9 @@ void GenCollectorPolicy::initialize_size_info() {
     }
 
     assert(_min_gen0_size > 0, "Sanity check");
+    // 设定新生代初始值
     set_initial_gen0_size(desired_new_size);
+    // 设定新生代最大值
     set_max_gen0_size(max_new_size);
 
     // At this point the desirable initial and minimum sizes have been
@@ -785,14 +789,16 @@ MarkSweepPolicy::MarkSweepPolicy() {
 }
 
 void MarkSweepPolicy::initialize_generations() {
-  // 初始化永久代
+  // 创建永久代
   initialize_perm_generation(PermGen::MarkSweepCompact);
   _generations = new GenerationSpecPtr[number_of_generations()];
   if (_generations == NULL)
     vm_exit_during_initialization("Unable to allocate gen spec");
 
+  // 如果指定了-XX:+UseParNewGC则年轻代使用并行GC
   if (UseParNewGC && ParallelGCThreads > 0) {
     _generations[0] = new GenerationSpec(Generation::ParNew, _initial_gen0_size, _max_gen0_size);
+  // 否则就使用串行GC
   } else {
     _generations[0] = new GenerationSpec(Generation::DefNew, _initial_gen0_size, _max_gen0_size);
   }

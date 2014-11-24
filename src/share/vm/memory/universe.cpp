@@ -347,9 +347,9 @@ void Universe::genesis(TRAPS) {
         _the_array_interfaces_array = oopFactory::new_system_objArray(2, CHECK);
       }
     }
-
+    // 初始化语法表
     vmSymbols::initialize(CHECK);
-
+    // 初始化系统字典和预加载类
     SystemDictionary::initialize(CHECK);
 
     klassOop ok = SystemDictionary::Object_klass();
@@ -782,7 +782,8 @@ jint universe_init() {
   }
 
   //===================================
-  //
+  // 初始化堆
+  // 包括创建及初始化各分区代，设定空间比例大小，回收策略等
   //===================================
   jint status = Universe::initialize_heap();
   if (status != JNI_OK) {
@@ -889,9 +890,10 @@ char* Universe::preferred_heap_base(size_t heap_size, NARROW_OOP_MODE mode) {
 }
 
 jint Universe::initialize_heap() {
-
+  // 如果使用并行GC
   if (UseParallelGC) {
 #ifndef SERIALGC
+	// 回收堆类型使用并行回收堆
     Universe::_collectedHeap = new ParallelScavengeHeap();
 #else  // SERIALGC
     fatal("UseParallelGC not supported in java kernel vm.");
@@ -899,6 +901,7 @@ jint Universe::initialize_heap() {
 
   } else if (UseG1GC) {
 #ifndef SERIALGC
+	// 如果使用G1回收，设定回收器策略和回收堆类型为G1CollectorPolicy和G1CollectedHeap
     G1CollectorPolicy* g1p = new G1CollectorPolicy();
     G1CollectedHeap* g1h = new G1CollectedHeap(g1p);
     Universe::_collectedHeap = g1h;
@@ -908,11 +911,14 @@ jint Universe::initialize_heap() {
 
   } else {
     GenCollectorPolicy *gc_policy;
-
+    // 使用串行回收
     if (UseSerialGC) {
       gc_policy = new MarkSweepPolicy();
+    // 使用并发回收
     } else if (UseConcMarkSweepGC) {
 #ifndef SERIALGC
+      // 是否使用自适应策略
+      // ASConcurrentMarkSweepPolicy继承自ConcurrentMarkSweepPolicy，
       if (UseAdaptiveSizePolicy) {
         gc_policy = new ASConcurrentMarkSweepPolicy();
       } else {
@@ -921,19 +927,30 @@ jint Universe::initialize_heap() {
 #else   // SERIALGC
     fatal("UseConcMarkSweepGC not supported in java kernel vm.");
 #endif // SERIALGC
+    // 默认使用标记清除算法
     } else { // default old generation
       gc_policy = new MarkSweepPolicy();
     }
-
+    // 回收策略类型体系图
+    // AllocatedObj
+    //	└── CHeapObj
+    //		└── CollectorPolicy
+    //			└── GenCollectorPolicy
+    //				└── TwoGenerationCollectorPolicy
+    //					└── ConcurrentMarkSweepPolicy
+    //						└── ASConcurrentMarkSweepPolicy
     Universe::_collectedHeap = new GenCollectedHeap(gc_policy);
   }
+  //===================================
   // 初始化堆空间
+  //===================================
   jint status = Universe::heap()->initialize();
   if (status != JNI_OK) {
     return status;
   }
 
 #ifdef _LP64
+  // 在LP64数据模型下是否开启对象指针压缩
   if (UseCompressedOops) {
     // Subtract a page because something can get allocated at heap base.
     // This also makes implicit null checking work, because the
@@ -991,7 +1008,7 @@ jint Universe::initialize_heap() {
 
   // We will never reach the CATCH below since Exceptions::_throw will cause
   // the VM to exit if an exception is thrown during initialization
-
+  // 如果使用TLAB则对其进行初始化
   if (UseTLAB) {
     assert(Universe::heap()->supports_tlab_allocation(),
            "Should support thread-local allocation buffers");

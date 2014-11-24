@@ -285,7 +285,8 @@ main(int argc, char ** argv)
 
     if (_launcher_debug)
       start = CounterGet();
-    // 返回libjvm.so里JNI_CreateJavaVM方法的符号地址
+    // 通过jvmpath找到libjvm.so 并将其JNI_CreateJavaVM和JNI_GetDefaultJavaVMInitArgs方法的
+    // 符号地址返回，挂载到InvocationFunctions的CreateJavaVM和GetDefaultJavaVMInitArgs以便后续调用
     if (!LoadJavaVM(jvmpath, &ifn)) {
       exit(6);
     }
@@ -401,8 +402,66 @@ main(int argc, char ** argv)
       args.classname = classname;
       args.ifn = ifn;
 
-      // 至于为什么在新线程中创建JVM看这里
-      // https://bugs.openjdk.java.net/browse/JDK-6316197
+      // 至于为什么在新线程中创建JVM见如下注释引用或原文https://bugs.openjdk.java.net/browse/JDK-6316197
+//      Primordial thread is created by the kernel before any program/library code
+//      has a chance to run. It's stack size and location can be very different
+//      from other threads created by the application. Creating JVM from primordial
+//      thread and later running Java code in the primordial thread introduced
+//      many problems:
+//
+//      1. On Windows primordial thread stack size is controlled by PE header in
+//         the executable. There is no way for user to change it dynamically, which
+//         means -Xss does not work for primordial thread.
+//
+//      2. On Solaris/Linux, primordial thread stack size is controlled by ulimit -s,
+//         which is usually very large (8M). To compensate for that we set guard
+//         page in the middle of stack to artificially reduce the stack size. However,
+//         this may interfere with native applications.
+//
+//      3. Setting guard page for primordial thread is dangerous. Unlike other
+//         threads, primordial thread stack can grow on demand. getrlimit()
+//         tells VM the ulimit value which is the upper limit but not necessarily
+//         the actual stack size. What could happen is that VM sets up the guard
+//         at the theoretical limit, but because the program doesn't really use
+//         that much stack, the unused space is reused for other purposes (e.g. malloc)
+//         by the OS (this reuse won't occur with other threads). We ended up having
+//         some C heap inserted between stack and its guard page.
+//
+//      4. On Linux VM bangs stack address below current SP to check for stack overflows.
+//         This will trigger SEGV's if it happens in primordial thread due to a security
+//         feature built into the kernel. Linux VM gets around the problem by manually
+//         expanding the stack. However when VM is expanding the stack, for a very short
+//         period the available stack space will be reduced to just 1 page. If a signal
+//         is delivered in that window, VM could end up without space to handle the signal.
+//
+//      5. Some Linux kernel randomizes the starting stack address for primordial thread
+//         both for stack coloring and exec-shield, but it won't tell the application.
+//         This makes it impossible to reliably detect stack location and size in primordial
+//         thread. VM needs the information to correctly handle stack overflows. We do
+//         have some cushion which is enough most of the time, but as shown in bug reports
+//         people do hit crashes because of this.
+//
+//      6. On Linux there is no thr_main() equivalent that can tell if current thread
+//         is primordial thread, makes it even harder to have special code to handle
+//         primordial thread.
+//
+//      I'm sure there are other issues that I didn't cover in the list. Basically
+//      primordial thread has been a constant source of runtime bugs.
+//
+//      This proposal calls for java launcher to stop calling JNI_CreateJavaVM from
+//      primordial thread. Instead, it can create a new thread and move all invocation
+//      code to the new thread. Primordial thread simply waits for the new thread
+//      to return and then it can terminate the process with the same exit value returned
+//      by the new thread. With this change we won't see any of the above problems
+//      as long as the application is started by a standard Sun launcher.
+//
+//      The above mentioned will still exist if VM is invoked from natvie application.
+//      Which means we have to keep all current VM workarounds for primordial thread,
+//      and probably need to add more. But reliability wise this is still significantly
+//      better as most people are using standard launcher. Also, unlike standard java
+//      launcher, customers have full control of native launcher. For example, if they
+//      wish to use larger stack on Windows, they could simply rebuild their launcher
+//      with larger stack size.
       return ContinueInNewThread(JavaMain, threadStackSize, (void*)&args);
     }
 }
@@ -437,13 +496,16 @@ JavaMain(void * _args)
 
     if (_launcher_debug)
         start = CounterGet();
-    // 调用初始化虚拟机
+    // ================================
+    // 开始进行虚拟机初始化，此方法内部调用了JNI_CreateJavaVM，
+    // 这里做的事情非常之多，也是JVM启动的精华部分
+    // ================================
     if (!InitializeJVM(&vm, &env, &ifn)) {
         ReportErrorMessage("Could not create the Java virtual machine.",
                            JNI_TRUE);
         exit(1);
     }
-
+    // 如果输入了-version或-showversion参数
     if (printVersion || showVersion) {
         PrintJavaVersion(env);
         if ((*env)->ExceptionOccurred(env)) {
@@ -512,6 +574,7 @@ JavaMain(void * _args)
      */
     // 解析jar包并加载主类文件
     if (jarfile != 0) {
+    	// 如果传入的是jar文件名称则通过调用java.util.jar.JarFile加载jar包并获取主类
         mainClassName = GetMainClassName(env, jarfile);
         if ((*env)->ExceptionOccurred(env)) {
             ReportExceptionDescription(env);
@@ -573,6 +636,7 @@ JavaMain(void * _args)
     }
 
     /* Get the application's main method */
+    // 获得主方法的ID
     mainID = (*env)->GetStaticMethodID(env, mainClass, "main",
                                        "([Ljava/lang/String;)V");
     if (mainID == NULL) {
@@ -588,6 +652,7 @@ JavaMain(void * _args)
     {    /* Make sure the main method is public */
         jint mods;
         jmethodID mid;
+        // 通过反射获得main方法修饰符
         jobject obj = (*env)->ToReflectedMethod(env, mainClass,
                                                 mainID, JNI_TRUE);
 
@@ -604,7 +669,7 @@ JavaMain(void * _args)
             ReportExceptionDescription(env);
             goto leave;
         }
-
+        // 确保是public类型
         mods = (*env)->CallIntMethod(env, obj, mid);
         if ((mods & 1) == 0) { /* if (!Modifier.isPublic(mods)) ... */
             message = "Main method not public.";
@@ -1307,7 +1372,7 @@ InitializeJVM(JavaVM **pvm, JNIEnv **penv, InvocationFunctions *ifn)
             printf("    option[%2d] = '%s'\n",
                    i, args.options[i].optionString);
     }
-
+    // 调用JNI_CreateJavaVM创建虚拟机
     r = ifn->CreateJavaVM(pvm, (void **)penv, &args);
     JLI_MemFree(options);
     return r == JNI_OK;
@@ -1458,7 +1523,7 @@ GetMainClassName(JNIEnv *env, char *jarname)
     jobject jar, man, attr;
     jstring str, result = 0;
 
-    NULL_CHECK0(cls = (*env)->FindClass(env, "java/util/jar/JarFile"));
+	NULL_CHECK0(cls = (*env)->FindClass(env, "java/util/jar/JarFile"));
     NULL_CHECK0(mid = (*env)->GetMethodID(env, cls, "<init>",
                                           "(Ljava/lang/String;)V"));
     NULL_CHECK0(str = NewPlatformString(env, jarname));
