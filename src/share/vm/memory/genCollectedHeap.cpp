@@ -131,7 +131,7 @@ jint GenCollectedHeap::initialize() {
   size_t total_reserved = 0;
   int n_covered_regions = 0;
   ReservedSpace heap_rs(0);
-
+  //分配区域，三个区域:YoungGen,OldGen,PermGen
   heap_address = allocate(alignment, perm_gen_spec, &total_reserved,
                           &n_covered_regions, &heap_rs);
 
@@ -152,7 +152,7 @@ jint GenCollectedHeap::initialize() {
       "Could not reserve enough space for object heap");
     return JNI_ENOMEM;
   }
-
+  //_reserved区域包括Y,O,P三个区域
   _reserved = MemRegion((HeapWord*)heap_rs.base(),
                         (HeapWord*)(heap_rs.base() + heap_rs.size()));
 

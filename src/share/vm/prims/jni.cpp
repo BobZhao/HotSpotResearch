@@ -5124,7 +5124,9 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
    * JNI_CreateJavaVM will immediately fail using the above logic.
    */
   bool can_try_again = true;
-  // 通过Treads模块初始化VM并创建VM线程
+  //========================================
+  // 通过Threads模块初始化VM并创建VM线程
+  //========================================
   result = Threads::create_vm((JavaVMInitArgs*) args, &can_try_again);
   if (result == JNI_OK) {
     JavaThread *thread = JavaThread::current();

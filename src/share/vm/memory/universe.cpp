@@ -784,6 +784,9 @@ jint universe_init() {
   //===================================
   // 初始化堆
   // 包括创建及初始化各分区代，设定空间比例大小，回收策略等
+  // 流程：根据启动参数决定使用的回收策略，初始化回收策略时会指定所使用的代规范，
+  // 	  最后根据规范创建对应类型的回收堆。i.e.
+  //      arguments -> policy -> spec -> heap
   //===================================
   jint status = Universe::initialize_heap();
   if (status != JNI_OK) {
@@ -943,6 +946,7 @@ jint Universe::initialize_heap() {
   }
   //===================================
   // 初始化堆空间
+  // 这里调用GenCollectedHeap::initialize()方法， 真正向操作系统申请内存
   //===================================
   jint status = Universe::heap()->initialize();
   if (status != JNI_OK) {
