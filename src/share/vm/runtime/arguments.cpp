@@ -1115,6 +1115,9 @@ void Arguments::set_parnew_gc_flags() {
   disable_adaptive_size_policy("UseParNewGC");
 
   if (ParallelGCThreads == 0) {
+	// 如果ParallelGCThreads未设置或值为0，则根据当前CPU核数计算，公式如下：
+	// 如果物理CPU核数在8个之内，则PGC线程数等于CPU核数；如果大于8核，则按照
+	// 8 + (cpu_nums - 8) * (5/8) 来计算。
     FLAG_SET_DEFAULT(ParallelGCThreads,
                      Abstract_VM_Version::parallel_worker_threads());
     if (ParallelGCThreads == 1) {
@@ -1175,6 +1178,7 @@ void Arguments::set_cms_and_parnew_gc_flags() {
   // In either case, adjust ParallelGCThreads and/or UseParNewGC
   // as needed.
   if (UseParNewGC) {
+	// 设置新生代gc标志
     set_parnew_gc_flags();
   }
 
@@ -1887,7 +1891,7 @@ bool Arguments::check_vm_args_consistency() {
   }
 
   status = status && verify_percentage(GCHeapFreeLimit, "GCHeapFreeLimit");
-
+  // 检查GC启动参数是否统一
   status = status && check_gc_consistency();
   status = status && check_stack_pages();
 
@@ -2846,7 +2850,7 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
       }
     }
   }
-
+  // 检查VM启动参数是否统一
   if (!check_vm_args_consistency()) {
     return JNI_ERR;
   }
@@ -3187,11 +3191,14 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
   }
   set_heap_base_min_address();
   // Set heap size based on available physical memory
+  // 如果-Xmx、-Xms参数未设置，则根据可用物理内存设置堆空间大小
   set_heap_size();
   // Set per-collector flags
   if (UseParallelGC || UseParallelOldGC) {
+	// 设置并行gc标志，比如并行回收线程数的计算等
     set_parallel_gc_flags();
   } else if (UseConcMarkSweepGC) { // should be done before ParNew check below
+	// 设置并发gc标志
     set_cms_and_parnew_gc_flags();
   } else if (UseParNewGC) {  // skipped if CMS is set above
     set_parnew_gc_flags();

@@ -290,12 +290,13 @@ void GenCollectedHeap::post_initialize() {
   TwoGenerationCollectorPolicy *policy =
     (TwoGenerationCollectorPolicy *)collector_policy();
   guarantee(policy->is_two_generation_policy(), "Illegal policy type");
+  // 年轻代
   DefNewGeneration* def_new_gen = (DefNewGeneration*) get_gen(0);
   assert(def_new_gen->kind() == Generation::DefNew ||
          def_new_gen->kind() == Generation::ParNew ||
          def_new_gen->kind() == Generation::ASParNew,
          "Wrong generation kind");
-
+  // 年老代
   Generation* old_gen = get_gen(1);
   assert(old_gen->kind() == Generation::ConcurrentMarkSweep ||
          old_gen->kind() == Generation::ASConcurrentMarkSweep ||
@@ -469,18 +470,20 @@ void GenCollectedHeap::do_collection(bool  full,
   ClearedAllSoftRefs casr(do_clear_all_soft_refs, collector_policy());
 
   const size_t perm_prev_used = perm_gen()->used();
-
+  // 触发GC前打印堆如果设置了+XX:+PrintHeapAtGCc参数
   print_heap_before_gc();
 
   {
     FlagSetting fl(_is_gc_active, true);
 
     bool complete = full && (max_level == (n_gens()-1));
+    // minor gc还是full gc
     const char* gc_cause_prefix = complete ? "Full GC" : "GC";
     TraceCPUTime tcpu(PrintGCDetails, true, gclog_or_tty);
     GCTraceTime t(GCCauseString(gc_cause_prefix, gc_cause()), PrintGCDetails, false, NULL);
 
     gc_prologue(complete);
+    // 更新回收计数
     increment_total_collections(complete);
 
     size_t gch_prev_used = used();

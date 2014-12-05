@@ -2917,7 +2917,9 @@ typeArrayHandle ClassFileParser::assemble_annotations(u1* runtime_visible_annota
   return annotations;
 }
 
-
+/**
+ * 解析类文件
+ */
 instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
                                                     Handle class_loader,
                                                     Handle protection_domain,
@@ -3000,16 +3002,19 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   _class_name = (name != NULL) ? name : vmSymbols::unknown_class_name();
 
   cfs->guarantee_more(8, CHECK_(nullHandle));  // magic, major, minor
+  // 获取魔数
   // Magic value
   u4 magic = cfs->get_u4_fast();
   guarantee_property(magic == JAVA_CLASSFILE_MAGIC,
                      "Incompatible magic value %u in class file %s",
                      magic, CHECK_(nullHandle));
 
+  // 获取主次版本号
   // Version numbers
   u2 minor_version = cfs->get_u2_fast();
   u2 major_version = cfs->get_u2_fast();
 
+  // 检查版本号是否支持
   // Check version numbers - we check this even with verifier off
   if (!is_supported_version(major_version, minor_version)) {
     if (name == NULL) {
@@ -3040,6 +3045,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   // Do not restrict it to jdk1.0 or jdk1.1 to maintain backward compatibility (4982376)
   _relax_verify = Verifier::relax_verify_for(class_loader());
 
+  // 解析常量池
   // Constant pool
   constantPoolHandle cp = parse_constant_pool(class_loader, CHECK_(nullHandle));
   ConstantPoolCleaner error_handler(cp); // set constant pool to be cleaned up.
@@ -3047,7 +3053,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   int cp_size = cp->length();
 
   cfs->guarantee_more(8, CHECK_(nullHandle));  // flags, this_class, super_class, infs_len
-
+  // 访问标识
   // Access flags
   AccessFlags access_flags;
   jint flags = cfs->get_u2_fast() & JVM_RECOGNIZED_CLASS_MODIFIERS;
@@ -3056,18 +3062,20 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // Set abstract bit for old class files for backward compatibility
     flags |= JVM_ACC_ABSTRACT;
   }
+  // 验证类修饰符是否合法（非抽象、非接口、非枚举 etc..）
   verify_legal_class_modifiers(flags, CHECK_(nullHandle));
   access_flags.set_flags(flags);
 
   // This class and superclass
   instanceKlassHandle super_klass;
+  // 获取本类索引
   u2 this_class_index = cfs->get_u2_fast();
   check_property(
     valid_cp_range(this_class_index, cp_size) &&
       cp->tag_at(this_class_index).is_unresolved_klass(),
     "Invalid this class index %u in constant pool in class file %s",
     this_class_index, CHECK_(nullHandle));
-
+  // 从常量池中找出该类并返回符号引用
   Symbol*  class_name  = cp->unresolved_klass_at(this_class_index);
   assert(class_name != NULL, "class_name can't be null");
 
@@ -3113,7 +3121,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
       if (cfs->source() != NULL) tty->print(" from %s", cfs->source());
       tty->print_cr("]");
     }
-
+    // 获取父类索引
     u2 super_class_index = cfs->get_u2_fast();
     if (super_class_index == 0) {
       check_property(class_name == vmSymbols::java_lang_Object(),
@@ -3143,14 +3151,17 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     }
 
     // Interfaces
+    // 获取接口长度（计数器）
     u2 itfs_len = cfs->get_u2_fast();
     objArrayHandle local_interfaces;
     if (itfs_len == 0) {
       local_interfaces = objArrayHandle(THREAD, Universe::the_empty_system_obj_array());
     } else {
+      // 解析接口
       local_interfaces = parse_interfaces(cp, itfs_len, class_loader, protection_domain, _class_name, CHECK_(nullHandle));
     }
 
+    // 解析字段（含本类及所实现的接口中的字段）
     u2 java_fields_count = 0;
     // Fields (offsets are filled in later)
     FieldAllocationCount fac;
@@ -3158,6 +3169,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     typeArrayHandle fields = parse_fields(class_name, cp, access_flags.is_interface(), &fac, &fields_annotations,
                                           &java_fields_count,
                                           CHECK_(nullHandle));
+    // 解析方法
     // Methods
     bool has_final_method = false;
     AccessFlags promoted_flags;

@@ -34,6 +34,7 @@
 #include "runtime/safepoint.hpp"
 #include "utilities/events.hpp"
 
+// Java堆的抽象类
 // A "CollectedHeap" is an implementation of a java heap for HotSpot.  This
 // is an abstract class: there may be many different kinds of heaps.  This
 // class defines the functions that a heap must implement, and contains
@@ -103,9 +104,11 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   MemRegion _reserved;
   BarrierSet* _barrier_set;
   bool _is_gc_active;
+  // gc线程数
   uint _n_par_threads;
-
+  // minor gc次数
   unsigned int _total_collections;          // ... started
+  // full gc次数
   unsigned int _total_full_collections;     // ... started
   NOT_PRODUCT(volatile size_t _promotion_failure_alot_count;)
   NOT_PRODUCT(volatile size_t _promotion_failure_alot_gc_number;)
@@ -363,12 +366,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   // Allocate and initialize instances of Class
   static oop Class_obj_allocate(KlassHandle klass, int size, KlassHandle real_klass, TRAPS);
-
+  // 普通对象/数组分配场所
   // General obj/array allocation facilities.
   inline static oop obj_allocate(KlassHandle klass, int size, TRAPS);
   inline static oop array_allocate(KlassHandle klass, int size, int length, TRAPS);
   inline static oop array_allocate_nozero(KlassHandle klass, int size, int length, TRAPS);
-
+  // 特殊对象/数组分配场所（永久代）
   // Special obj/array allocation facilities.
   // Some heaps may want to manage "permanent" data uniquely. These default
   // to the general routines if the heap does not support such handling.
@@ -530,6 +533,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Does this heap support heap inspection (+PrintClassHistogram?)
   virtual bool supports_heap_inspection() const = 0;
 
+  // 对堆空间进行回收。System.gc()调用的即为此方法
   // Perform a collection of the heap; intended for use in implementing
   // "System.gc".  This probably implies as full a collection as the
   // "CollectedHeap" supports.

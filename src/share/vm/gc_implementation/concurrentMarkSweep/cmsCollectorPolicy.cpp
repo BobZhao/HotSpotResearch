@@ -63,7 +63,7 @@ ConcurrentMarkSweepPolicy::ConcurrentMarkSweepPolicy() {
 }
 
 void ConcurrentMarkSweepPolicy::initialize_generations() {
-  // 创建持久代
+  // 初始化持久代
   initialize_perm_generation(PermGen::ConcurrentMarkSweep);
   _generations = new GenerationSpecPtr[number_of_generations()];
   if (_generations == NULL)
@@ -84,7 +84,7 @@ void ConcurrentMarkSweepPolicy::initialize_generations() {
     _generations[0] = new GenerationSpec(Generation::DefNew,
                                          _initial_gen0_size, _max_gen0_size);
   }
-  // 如果设定年老代GC规范
+  // 是否使用自适应策略并设定年老代GC规范
   if (UseAdaptiveSizePolicy) {
     _generations[1] = new GenerationSpec(Generation::ASConcurrentMarkSweep,
                             _initial_gen1_size, _max_gen1_size);

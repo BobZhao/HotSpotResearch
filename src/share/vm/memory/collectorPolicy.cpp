@@ -108,11 +108,13 @@ void CollectorPolicy::initialize_size_info() {
   if (min_heap_byte_size() == 0) {
     set_min_heap_byte_size(NewSize + OldSize);
   }
-  //设置堆最小空间
+  // 设置堆最小空间
   set_min_heap_byte_size(align_size_up(_min_heap_byte_size,
                                        min_alignment()));
-  //设置堆最大空间
+  // 设置堆最大空间
   set_max_heap_byte_size(align_size_up(MaxHeapSize, max_alignment()));
+
+  // ============  一系列参数检查 ================
 
   // Check heap parameter properties
   if (initial_heap_byte_size() < M) {
@@ -135,6 +137,8 @@ void CollectorPolicy::initialize_size_info() {
   if (max_heap_byte_size() < initial_heap_byte_size()) {
     vm_exit_during_initialization("Incompatible initial and maximum heap sizes specified");
   }
+
+  // ==============================================
 
   if (PrintGCDetails && Verbose) {
     gclog_or_tty->print_cr("Minimum heap " SIZE_FORMAT "  Initial heap "
@@ -798,7 +802,7 @@ void MarkSweepPolicy::initialize_generations() {
   // 如果指定了-XX:+UseParNewGC则年轻代使用并行GC
   if (UseParNewGC && ParallelGCThreads > 0) {
     _generations[0] = new GenerationSpec(Generation::ParNew, _initial_gen0_size, _max_gen0_size);
-  // 否则就使用串行GC
+  // 否则新生代默认使用串行GC
   } else {
     _generations[0] = new GenerationSpec(Generation::DefNew, _initial_gen0_size, _max_gen0_size);
   }

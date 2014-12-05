@@ -56,6 +56,16 @@ class GCPolicyCounters;
 class PermanentGenerationSpec;
 class MarkSweepPolicy;
 
+/* collector policy class hierarchy */
+//CollectorPolicy
+//├── G1CollectorPolicy
+//└── GenCollectorPolicy
+//    └── TwoGenerationCollectorPolicy
+//        ├── ConcurrentMarkSweepPolicy
+//        │   └── ASConcurrentMarkSweepPolicy
+//        ├── GenerationSizer
+//        └── MarkSweepPolicy
+
 class CollectorPolicy : public CHeapObj<mtGC> {
  protected:
   PermanentGenerationSpec *_permanent_generation;

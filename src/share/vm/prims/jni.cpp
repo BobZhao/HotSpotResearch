@@ -5187,6 +5187,9 @@ HS_DTRACE_PROBE_DECL3(hotspot_jni, GetCreatedJavaVMs__entry, \
 HS_DTRACE_PROBE_DECL1(hotspot_jni, GetCreatedJavaVMs__return, jint);
 #endif /* !USDT2 */
 
+/**
+ * 获得已创建的VMs
+ */
 _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize bufLen, jsize *numVMs) {
   // See bug 4367188, the wrapper can sometimes cause VM crashes
   // JNIWrapper("GetCreatedJavaVMs");
@@ -5221,6 +5224,9 @@ DT_RETURN_MARK_DECL(DestroyJavaVM, jint
                     , HOTSPOT_JNI_DESTROYJAVAVM_RETURN(_ret_ref));
 #endif /* USDT2 */
 
+/**
+ * 销毁VM（在运行完main方法后调用）
+ */
 jint JNICALL jni_DestroyJavaVM(JavaVM *vm) {
 #ifndef USDT2
   DTRACE_PROBE1(hotspot_jni, DestroyJavaVM__entry, vm);

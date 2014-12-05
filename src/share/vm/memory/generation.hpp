@@ -85,6 +85,17 @@ struct ScratchBlock {
                               // first two fields are word-sized.)
 };
 
+//Generation
+//├── CardGeneration
+//│   ├── ConcurrentMarkSweepGeneration
+//│   │   ├── ASConcurrentMarkSweepGeneration
+//│   │   └── CMSPermGenGen
+//│   └── OneContigSpaceCardGeneration
+//│       ├── CompactingPermGenGen
+//│       └── TenuredGeneration
+//└── DefNewGeneration
+//    └── ParNewGeneration
+//        └── ASParNewGeneration
 
 class Generation: public CHeapObj<mtGC> {
   friend class VMStructs;

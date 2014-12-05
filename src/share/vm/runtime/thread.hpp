@@ -94,6 +94,27 @@ class WorkerThread;
 //   - JavaThread
 //   - WatcherThread
 
+//线程类型结构
+//Thread
+//├── JavaThread
+//│   ├── CompilerThread
+//│   ├── JvmtiAgentThread
+//│   ├── ServiceThread
+//│   └── SurrogateLockerThread
+//├── NamedThread
+//│   ├── ConcurrentGCThread
+//│   │   ├── ConcurrentG1RefineThread
+//│   │   ├── ConcurrentMarkSweepThread
+//│   │   └── ConcurrentMarkThread
+//│   ├── MemTrackerWorker
+//│   ├── VMThread
+//│   └── WorkerThread
+//│       ├── GCTaskThread
+//│       └── GangWorker
+//│           └── YieldingFlexibleGangWorker
+//└── WahtcherThread
+
+
 class Thread: public ThreadShadow {
   friend class VMStructs;
  private:

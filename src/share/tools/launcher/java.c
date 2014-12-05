@@ -401,7 +401,7 @@ main(int argc, char ** argv)
       args.jarfile = jarfile;
       args.classname = classname;
       args.ifn = ifn;
-
+      // block当前线程并且在新线程中继续执行
       // 至于为什么在新线程中创建JVM见如下注释引用或原文https://bugs.openjdk.java.net/browse/JDK-6316197
 //      Primordial thread is created by the kernel before any program/library code
 //      has a chance to run. It's stack size and location can be very different

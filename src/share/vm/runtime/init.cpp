@@ -115,12 +115,15 @@ jint init_globals() {
     return status;
   // 初始化解析器
   interpreter_init();  // before any methods loaded
+  // 初始化动作触发器
   invocationCounter_init();  // before any methods loaded
   // 初始化MarkSweep
   marksweep_init();
+  // 初始化访问标识
   accessFlags_init();
   // 初始化操作码模板表
   templateTable_init();
+  // 接口支持提供了VM_LEAF_BASE和VM_ENTRY_BASE宏
   InterfaceSupport_init();
   SharedRuntime::generate_stubs();
   // 初始化语法表及系统字典等
@@ -138,10 +141,11 @@ jint init_globals() {
   compilationPolicy_init();
   compileBroker_init();
   VMRegImpl::set_regName();
-
+  // 执行初始化
   if (!universe_post_init()) {
     return JNI_ERR;
   }
+  // 计算各种filed的偏移量？？
   javaClasses_init();   // must happen after vtable initialization
   stubRoutines_init2(); // note: StubRoutines need 2-phase init
 
